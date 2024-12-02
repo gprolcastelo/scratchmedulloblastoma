@@ -1,0 +1,23 @@
+#!/bin/bash
+
+#SBATCH -A bsc20
+#SBATCH --job-name=umaps
+#SBATCH --output=err_out/umaps_%j.out
+#SBATCH --error=err_out/umaps_%j.err
+#SBATCH --qos=gp_bscls
+#SBATCH -c 16
+#SBATCH --time=00-00:30:00
+#SBATCH -D .
+
+data_path=$1
+metadata_path=$2
+save_path=$3
+groups=$4
+module load intel impi mkl hdf5 python
+PYTHONPATH=$PYTHONPATH:.
+python src/visualization/visualize.py --data_path $data_path \
+                                      --metadata_path $metadata_path \
+                                      --save_path $save_path \
+                                      --groups $groups \
+                                      --n_components 2 \
+                                      --seed 2023

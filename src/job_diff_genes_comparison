@@ -1,0 +1,24 @@
+#!/bin/bash
+
+#SBATCH -A bsc20
+#SBATCH --job-name=diff_genes_comparison
+#SBATCH --output=err_out/diff_genes_comparison_%j.out
+#SBATCH --error=err_out/diff_genes_comparison_%j.err
+#SBATCH --qos=gp_bscls
+#SBATCH -c 16
+#SBATCH --time=00-02:00:00
+#SBATCH -D .
+
+external_genes=$1
+internal_genes_differential=$2
+internal_genes_shap=$3
+module load intel impi mkl hdf5 python
+PYTHONPATH=$PYTHONPATH:.
+python src/diff_genes_comparison.py --external_genes $external_genes \
+                                                               --internal_genes_differential $internal_genes_differential \
+                                                               --internal_genes_shap $internal_genes_shap \
+                                                               --group_of_interest G3_G4
+# python diff_genes_comparison.py --external_genes data/external/Supplementary_Table_5.csv \
+#                                                         --internal_genes_differential data/processed/differentially_expressed_genes/always_diff_genes.csv \
+#                                                         --internal_genes_shap data/processed/shap_genes/selected_genes.csv \
+#                                                         --group_of_interest G3_G4

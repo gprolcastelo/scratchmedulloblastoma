@@ -1,0 +1,34 @@
+#!/bin/bash
+
+#SBATCH -A bsc20
+#SBATCH --job-name=kw
+#SBATCH --output=err_out/kw_%j.out
+#SBATCH --error=err_out/kw_%j.err
+#SBATCH --qos=gp_bscls
+#SBATCH -c 16
+#SBATCH --time=00-02:00:00
+#SBATCH -D .
+
+data_path=$1
+metadata_path=$2
+genes_path=$3
+alpha=$4
+path_boxplot=$5
+save_path=$6
+group_to_analyze=$7
+echo "group_to_analyze: $group_to_analyze"
+module load intel impi mkl hdf5 python
+PYTHONPATH=$PYTHONPATH:.
+python src/kruskalwallis_inbetween.py --path_data $data_path \
+                                                                --path_clinical $metadata_path \
+                                                                --path_genes $genes_path \
+                                                                --alpha $alpha \
+                                                                --path_boxplot $path_boxplot \
+                                                                --save_path $save_path \
+                                                                --group_to_analyze "${group_to_analyze}"
+# python src/kruskalwallis_inbetween.py --path_rnaseq data/interim/20240903_data_augmentation/augmented_data.csv \
+#                                       --path_clinical data/interim/20240903_data_augmentation/augmented_clinical.csv \
+#                                       --path_genes data/processed/shap_genes/selected_genes.csv \
+#                                       --alpha 0.01 \
+#                                       --path_boxplot reports/figures/20241024_clustering_g3g4/boxplot_augmented \
+#                                       --save_path data/processed/differentially_expressed_genes/augmented

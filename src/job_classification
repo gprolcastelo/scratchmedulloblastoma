@@ -1,0 +1,26 @@
+#!/bin/bash
+
+#SBATCH -A bsc20
+#SBATCH --job-name=classification
+#SBATCH --output=err_out/classification_%j.out
+#SBATCH --error=err_out/classification_%j.err
+#SBATCH --qos=gp_bscls
+#SBATCH -c 64
+#SBATCH --time=00-02:00:00
+#SBATCH -D .
+
+data_path=$1
+metadata_path=$2
+save_path=$3
+module load intel impi mkl hdf5 python
+PYTHONPATH=$PYTHONPATH:.
+python src/group_classification.py --path_data $data_path \
+              --path_metadata $metadata_path \
+              --save_dir $save_path \
+              --n_classes 4 \
+              --classification_type weighted \
+              --n_seeds 10 \
+              --n_trials_optuna 100 \
+              --n_br 100 \
+              --test_size 0.2 \
+              --n_threads 112
