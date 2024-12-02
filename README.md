@@ -34,7 +34,7 @@ Follow these steps:
     ```
 
 ## Usage
-After setting up the environment, you can start using the scripts provided in the repository. The main pipeline script is `pipeline_nonhpc.sh`, which runs the entire analysis pipeline.
+After setting up the environment, you can start using the scripts provided in the repository. The main pipeline script is `pipeline.sh`, which runs the entire analysis pipeline.
 
 ## Reproducing Results
 To reproduce the results, follow these steps:
@@ -46,7 +46,7 @@ To reproduce the results, follow these steps:
 
 2. Run the pipeline script:
     ```bash
-    bash pipeline_nonhpc.sh
+    bash pipeline.sh
     ```
 
 This script will execute all the necessary steps, including data preprocessing, classification, clustering, and visualization, and save the results to the `data` and `reports` subdirectories.
