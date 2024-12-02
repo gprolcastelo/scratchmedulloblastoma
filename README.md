@@ -61,4 +61,4 @@ On the other hand, this is an open-source, open-science project, and so you are 
 Feel free to clone or fork the repository.
 
 ## License
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for more details.
+This project is licensed under the Apache 2.0 License. See the [LICENSE](LICENSE) file for more details.
