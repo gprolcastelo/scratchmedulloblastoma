@@ -36,6 +36,12 @@ Follow these steps:
 ## Usage
 After setting up the environment, you can start using the scripts provided in the repository. The main pipeline script is `pipeline.sh`, which runs the entire analysis pipeline.
 
+After following the steps from the [Installation](#installation) sectionn, just execute `pipeline.sh`:
+
+```bash
+    bash pipeline.sh
+```
+
 ## Reproducing Results
 To reproduce the results, follow these steps:
 
