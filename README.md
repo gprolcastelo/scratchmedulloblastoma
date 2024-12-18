@@ -61,7 +61,7 @@ This script will execute all the necessary steps, including data preprocessing, 
 
 > **High Performance Computing (HPC) is highly recommended to run the pipeline**, as it requires significant computational resources, especially when training the VAE model and running the SHapley Additive exPlanations (SHAP) algorithm. 
 
-Take into account that the scripts will generate over 200 GB of data.
+For example, running the `src/classification_shap.py` on the preprocessed data took about 18 hours on 112 cores.
 
 ## Contributing
 Contributions generally not expected. However, if you have any suggestions or improvements, feel free to reach out in the issues section. 

@@ -1,9 +1,9 @@
-# ! export PYTHONPATH=${PYTHONPATH}:..
 '''
-Code to classify medulloblastoma subgroups. Data dimensionality reduction is performed using VAE.
-Explainability is performed using SHAP values both in the original and latent spaces.
+Code to explain classification of medulloblastoma subgroups in the latent space.
+Explainability is performed using SHAP values in the latent space, and then in the original space.
+This ay, first we map subgroups --> latent variables, and then latent variables --> genes, to find the mapping of subgroups --> genes.
 Author: Guillermo Prol-Castelo
-Date: 2024-05-31
+Date: 2024-10-31
 License: Apache 2.0
 '''
 import numpy as np
@@ -70,14 +70,8 @@ class EncoderWithReparam(torch.nn.Module):
         mu = mu_logvar[:, 0, :]
         logvar = mu_logvar[:, 1, :]
         z = self.vae_model.reparametrize(mu, logvar)
-        # print('Inside EncoderWithReparam')
-        # print('z.shape = ', z.shape)
-        # print('type(z) = ', type(z))
         if self.selected_lv is not None:
             z = z[:, self.selected_lv]
-            # Ensure self.selected_lv is a tensor to trigger advanced indexing
-            # selected_lv_tensor = torch.tensor(self.selected_lv, device=z.device, dtype=torch.long)
-            # z = z.index_select(1, selected_lv_tensor)
         return z
 #######################################################################
 
@@ -192,27 +186,13 @@ def main(args):
 
     # Mean of shap values
     # 1. SHAP values from the XGBoost model in the latent space
-    # Calculate the sum of the mean SHAP values for each latent variable
-    # sum_mean_shap = np.zeros(feat)
-    # for shap_val_i in tqdm(bagging_shap_values):
-    #     # mean per patient
-    #     mean_shap_i=np.nanmean(shap_val_i, axis=0)
-    #     # sum over groups
-    #     sum_mean_shap+=np.nansum(mean_shap_i,axis=1)
-    # print('sum_mean_shap= ', sum_mean_shap)
-
-    # alternative way to calculate sum_mean_shap
-    # v3: sum over classes and mean over samples
+    # Calculate the sum over classes and mean over samples
     sum_mean_shap = final_shaps(bagging_shap_values, use_abs=True)
     print('sum_mean_shap= ', sum_mean_shap)
     # Save sum_mean_shap
     np.save(os.path.join(args.save_path, 'sum_mean_shap.npy'), sum_mean_shap)
 
     # Shap: latent space --> genes
-    ## Select the top latent variables
-    # selected_lv = np.argsort(sum_mean_shap)[::-1][:args.top_n_lv]
-    # selected_lv = np.argsort(np.abs(sum_mean_shap))[::-1][:args.top_n_lv] # take the absolute value to get the most important features
-    # selected_lv = np.sort(selected_lv) # this is to avoid problem with negative strides
     # take those variables that are more explainable than average
     selected_lv = np.where(sum_mean_shap > np.mean(sum_mean_shap))[0]
     selected_lv = np.sort(selected_lv)  # this is to avoid problem with negative strides
@@ -230,21 +210,10 @@ def main(args):
         save_path=args.save_path)
     print('deep_bagging_shap_values.shape =', np.array(deep_bagging_shap_values).shape)
     # # 2. SHAP values from the VAE model in the latent space
-    # sum_deep_shap = np.zeros(idim)
-    # for shap_val_i in tqdm(deep_bagging_shap_values):
-    #     # mean per patient
-    #     mean_shap_i=np.nanmean(shap_val_i, axis=0)
-    #     # sum over latent variables
-    #     sum_deep_shap += np.nansum(mean_shap_i,axis=1)
     sum_deep_shap = final_shaps(deep_bagging_shap_values, use_abs=True)
     # Save sum_deep_shap
     np.save(os.path.join(args.save_path, 'sum_deep_shap.npy'), sum_deep_shap)
     # Select most important genes
-    # get genes 1 std away from the mean
-    # mean_deep_shap = np.nanmean(sum_deep_shap)
-    # std_deep_shap = np.nanstd(sum_deep_shap)
-    # print(mean_deep_shap, std_deep_shap)
-    # selected_genes = data.columns[sum_deep_shap > mean_deep_shap + std_deep_shap].to_list()
     # get top n% of genes with highest shap values
     # Ensure sorted_sum_deep_shap contains indices
     sorted_indices = np.argsort(sum_deep_shap)[::-1]
@@ -259,7 +228,6 @@ def main(args):
     plt.hist(sum_deep_shap, bins=100, alpha=0.75, color='cornflowerblue', edgecolor='black')
     # plot vertical line for the top n% of genes
     plt.axvline(sum_deep_shap[sorted_indices[top_n - 1]], color='black', linestyle='dashed', linewidth=1)
-    # plt.axvline(mean_deep_shap + std_deep_shap, color='g', linestyle='dashed', linewidth=1)
     plt.legend(['Cutoff'], loc='upper right', fontsize=12)
     plt.xlabel('Sum of SHAP values', fontsize=12)
     plt.ylabel('Count', fontsize=12)
@@ -335,10 +303,6 @@ if __name__=='__main__':
                         type=str_or_list,
                         default='all',
                         help='Group to augment')
-    # parser.add_argument('--top_n_lv',
-    #                     type=int,
-    #                     default=12,
-    #                     help='Number of top tree-explained latent variables to use for deep SHAP. Unused right now.')
     args = parser.parse_args()
     device = 'cpu'
 
@@ -352,139 +316,3 @@ if __name__=='__main__':
         for key, value in vars(args).items():
             writer.writerow([key, value])
     main(args)
-
-# Save results:
-# np.save(os.path.join(save_path,'bagging_shap_values.npy'),np.array(bagging_shap_values))
-# Use 'wb' to write binary data
-# with open(os.path.join(save_path,'bagging_shap_values.npy'), 'wb') as f:
-#     pickle.dump(bagging_shap_values, f)
-# np.save(os.path.join(save_path,'deep_bagging_shap_values.npy'),np.array(deep_bagging_shap_values))
-# np.save(os.path.join(save_path,'classification_metrics.npy'),np.array(metrics))
-# np.save(os.path.join(save_path,'optuna_params.npy'),np.array(all_params))
-# np.save(os.path.join(save_path,'seeds.npy'),np.array(seeds))
-
-# Rest of the pipeline:
-# 1. SHAP values from the XGBoost model in the latent space
-# 2. SHAP values from the VAE model in the latent space
-# 3. Intersection of important features from XGBoost and VAE
-# 4. For each group, get the number of occurrences of each gene
-
-# # Define the groups
-# if args.num_classes == 4:
-#     dict_groups = {'Group3': 0, 'Group4': 0, 'SHH': 0, 'WNT': 0}
-#     dict_genes_count = {'Group3': 0, 'Group4': 0, 'SHH': 0, 'WNT': 0}
-#     dict_genes_init = {'Group3': 0, 'Group4': 0, 'SHH': 0, 'WNT': 0}
-#     dict_ls_init = {'Group3': 0, 'Group4': 0, 'SHH': 0, 'WNT': 0}
-# elif args.num_classes == 5:
-#     dict_groups = {'Group3': 0, 'Group4': 0, 'SHH': 0, 'WNT': 0, 'Transition': 0}
-#     dict_genes_count = {'Group3': 0, 'Group4': 0, 'SHH': 0, 'WNT': 0, 'Transition': 0}
-#     dict_genes_init = {'Group3': 0, 'Group4': 0, 'SHH': 0, 'WNT': 0, 'Transition': 0}
-#     dict_ls_init = {'Group3': 0, 'Group4': 0, 'SHH': 0, 'WNT': 0, 'Transition': 0}
-# else:
-#     raise ValueError("Number of classes not supported, please use 4 or 5")
-
-# # 1. SHAP values from the XGBoost model in the latent space
-# important_features_ls, shap_values_sum_ls = [], []
-# for shap_val_i in bagging_shap_values:
-#     important_features_ls_i, shap_values_sum_ls_i = sum_shap_values(
-#         shap_values=shap_val_i,
-#         q_here=args.qval,
-#         cols=dict_groups.keys(),
-#         idx=df_z.columns
-#     )
-#     important_features_ls.append(important_features_ls_i)
-#     shap_values_sum_ls.append(shap_values_sum_ls_i)
-#
-# important_features_ls = np.array(important_features_ls)
-# shap_values_sum_ls = np.array(shap_values_sum_ls)
-
-# # 2. SHAP values from the VAE model in the latent space
-# importantdeep_features, deep_shap_values_sum = [], []
-# for shap_val_i in tqdm(deep_bagging_shap_values):
-#     importantdeep_features_i, deep_shap_values_sum_i = sum_shap_values(
-#         shap_values=shap_val_i,
-#         q_here=args.qval,
-#         cols=df_z.columns,
-#         idx=rnaseq.index
-#     )
-#     importantdeep_features.append(importantdeep_features_i)
-#     deep_shap_values_sum.append(deep_shap_values_sum_i)
-#
-# importantdeep_features=np.array(importantdeep_features)
-# deep_shap_values_sum=np.array(deep_shap_values_sum)
-
-# # 3. Intersection of important features from XGBoost and VAE
-# list_of_dict_genes = []
-# list_of_dict_ls = []
-#
-# for important_features_ls_i, important_deep_features_i in tqdm(zip(important_features_ls, importantdeep_features)):
-#     dict_genes = dict_genes_init
-#     dict_ls = dict_ls_init
-#     for g_i in dict_genes.keys():
-#         print('* ' + g_i + ' explained by a # of genes:')
-#         important_features_ls_i = pd.DataFrame(important_features_ls_i, index=df_z.columns, columns=dict_groups.keys())
-#         # Map groups -> l.s.
-#         ## Get latent space components determined by shap to be important for this group classification
-#         ls_here = important_features_ls_i[important_features_ls_i[g_i]].index.to_list()
-#         print('ls_here = ', ls_here)
-#         # Map l.s. -> genes
-#         ## Get genes determined by deep shap to be important for each latent space component
-#         important_deep_features_i = pd.DataFrame(important_deep_features_i, index=rnaseq.index, columns=df_z.columns)
-#         # print('important_deep_features_i.index= ', important_deep_features_i.index)
-#         # print('important_deep_features_i.columns= ', important_deep_features_i.columns)
-#         # print('important_deep_features_i.shape = ', important_deep_features_i.shape)
-#         genes_here = important_deep_features_i[important_deep_features_i[ls_here].any(axis=1)].index.to_list()
-#         print('len(genes_here) =', len(genes_here))
-#         dict_genes[g_i] = genes_here
-#         dict_ls[g_i] = ls_here
-#         print()
-#
-#     list_of_dict_genes.append(dict_genes)
-#     list_of_dict_ls.append(dict_ls)
-#
-# # 4. For each group, get the number of occurrences of each gene
-#
-# for g_i in dict_genes_count.keys():
-#     # list of lists of genes
-#     g_i_genes= [list_of_dict_genes[i][g_i] for i in range(len(seeds))]
-#     # flatten the list
-#     g_i_genes = [item for sublist in g_i_genes for item in sublist]
-#     unique_genes, counts = np.unique(g_i_genes,return_counts=True)
-#     # create dictionary from unique genes and respective counts
-#     dict_genes_count_gi = dict(zip(unique_genes, counts))
-#     # add to dictionary of counts per group
-#     dict_genes_count[g_i] = dict_genes_count_gi
-# # get dataframe of counts per gene and group
-# df_gene_counts = pd.DataFrame(dict_genes_count)
-#
-# # Save the data
-# df_gene_counts.to_csv(os.path.join(save_path, 'df_gene_counts.csv'))
-# np.save(os.path.join(save_path, 'important_features_ls.npy'), important_features_ls)
-# np.save(os.path.join(save_path, 'shap_values_sum_ls.npy'), shap_values_sum_ls)
-# np.save(os.path.join(save_path, 'importantdeep_features.npy'), importantdeep_features)
-# np.save(os.path.join(save_path, 'deep_shap_values_sum.npy'), deep_shap_values_sum)
-# np.save(os.path.join(save_path, 'list_of_dict_genes.npy'), list_of_dict_genes)
-# np.save(os.path.join(save_path, 'list_of_dict_ls.npy'), list_of_dict_ls)
-
-
-
-# # mean and std of sum_deep_shap
-# mean_deep_shap = np.nanmean(sum_deep_shap)
-# std_deep_shap = np.nanstd(sum_deep_shap)
-# mean_deep_shap, std_deep_shap
-# # plot distribution of sum_deep_shap with mean and std
-# plt.hist(sum_deep_shap, bins=100, alpha=0.75, color='cornflowerblue',edgecolor='black')
-# plt.axvline(mean_deep_shap, color='k', linestyle='-.', linewidth=1)
-# plt.axvline(mean_deep_shap+std_deep_shap, color='k', linestyle='dashed', linewidth=1)
-# plt.axvline(mean_deep_shap-std_deep_shap, color='k', linestyle='dashed', linewidth=1)
-# plt.savefig(os.path.join(save_path, 'sum_deep_shap.png'))
-# plt.savefig(os.path.join(save_path, 'sum_deep_shap.pdf'))
-# plt.savefig(os.path.join(save_path, 'sum_deep_shap.svg'))
-# plt.show()
-
-# # get genes 1 std away from the mean
-# genes_1std_pos = rnaseq.index[sum_deep_shap > mean_deep_shap + std_deep_shap].to_list()
-# genes_1std_neg = rnaseq.index[sum_deep_shap < mean_deep_shap - std_deep_shap].to_list()
-# genes_important = np.array(genes_1std_pos + genes_1std_neg)
-# # save genes_important as numpy array
-# np.save(os.path.join(save_path, 'genes_important.npy'), genes_important)

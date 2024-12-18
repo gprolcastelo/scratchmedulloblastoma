@@ -99,7 +99,7 @@ def bagging_shap_pipeline(n_bags, X_data, y_data, z_data,
             ## Convert to DataFrame
             df_classification = pd.DataFrame(flattened_classification, columns=column_names_classification, index=X_data.index)
             ## Save to CSV
-            df_classification.to_csv(os.path.join(save_path_i, "classification_shap_values.csv"))
+            #df_classification.to_csv(os.path.join(save_path_i, "classification_shap_values.csv"))
     return bagging_shap_values, metrics, all_params, seeds
 
 def deep_bagging_shap_pipeline(n_bags, X_data, deep_model, scaler, save_path=None):
@@ -133,5 +133,5 @@ def deep_bagging_shap_pipeline(n_bags, X_data, deep_model, scaler, save_path=Non
             ## Convert to DataFrame
             df_deep = pd.DataFrame(flattened_deep,index=X_data.index, columns=column_names_deep)
             ## Save to CSV
-            df_deep.to_csv(os.path.join(save_path_i, "deep_shap_values.csv"))
+            #df_deep.to_csv(os.path.join(save_path_i, "deep_shap_values.csv"))
     return deep_bagging_shap_values, seeds
