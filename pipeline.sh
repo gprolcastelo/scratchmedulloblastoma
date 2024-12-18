@@ -20,8 +20,8 @@ mkdir -p err_out
 mkdir -p $model_path
 
 # 0. Obain data
-Rscript get_data.R
-python prepare_data.py
+Rscript src/get_data.R
+python src/prepare_data.py
 
 # 1. Preprocessing
 python src/preprocessing.py --data_path $data_path \
@@ -271,3 +271,6 @@ python src/classification_shap.py --n_shap 100 \
                                   --save_path ${shap_save_path}/real_data \
                                   --group_to_analyze "all"
 echo "Done with the pipeline."
+
+# TODO: add calls to src/check_noise.py, src/genes_reconstruction.py, and src/gprofiler.R
+# TODO: add to these scripts argparse with correct paths to data
