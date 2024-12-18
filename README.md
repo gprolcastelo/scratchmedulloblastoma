@@ -38,9 +38,9 @@ After setting up the environment, you can start using the scripts provided in th
 
 After following the steps from the [Installation](#installation) sectionn, just execute `pipeline.sh`:
 
-	```bash
+```bash
     bash pipeline.sh
-	```
+```
 
 Finally, the Jupyter Notebook `putting_results_together.ipynb` contains the code for ad-hoc processes that were not included in the `src` folder codes.
 
