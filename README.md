@@ -43,6 +43,25 @@ After following the steps from the [Installation](#installation) sectionn, just 
     bash pipeline.sh
 ```
 
+## Reproducing Results
+
+To reproduce the results, follow these steps:
+
+1. Ensure that the conda environment is activated:
+    ```bash
+    conda activate medulloblastoma
+    ```
+
+2. Run the pipeline script:
+    ```bash
+    bash pipeline.sh
+    ```
+
+This script will execute all the necessary steps, including data preprocessing, classification, clustering, and visualization, and save the results to the `data` and `reports` subdirectories.
+
+> **High Performance Computing (HPC) is highly recommended to run the pipeline**, as it requires significant computational resources, especially when training the VAE model and running the SHapley Additive exPlanations (SHAP) algorithm.
+
+
 ## Code Organization
 
 The scripts are located in the `src` folder. The `pipeline.sh` bash scripts follows the analysis steps detailed in the paper. 
@@ -73,22 +92,6 @@ For us, this took about 18 hours on 112 cores.
 
 Finally, the Jupyter Notebook `putting_results_together.ipynb` contains the code for ad-hoc processes that were not included in the `src` folder codes.
 
-## Reproducing Results
-To reproduce the results, follow these steps:
-
-1. Ensure that the conda environment is activated:
-    ```bash
-    conda activate medulloblastoma
-    ```
-
-2. Run the pipeline script:
-    ```bash
-    bash pipeline.sh
-    ```
-
-This script will execute all the necessary steps, including data preprocessing, classification, clustering, and visualization, and save the results to the `data` and `reports` subdirectories.
-
-> **High Performance Computing (HPC) is highly recommended to run the pipeline**, as it requires significant computational resources, especially when training the VAE model and running the SHapley Additive exPlanations (SHAP) algorithm.
 
 ## Contributing
 Contributions generally not expected. However, if you have any suggestions or improvements, feel free to reach out in the issues section. 
