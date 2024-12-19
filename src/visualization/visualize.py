@@ -1,10 +1,19 @@
-# UMAP: choose between 2 or 3 components
+# UMAP: choose  2 or 3 components
 import os
 from datetime import datetime
 import matplotlib.pyplot as plt
 plt.style.use('ggplot')
 import umap
 from sklearn.manifold import TSNE
+
+def str_or_list(value):
+    if isinstance(value, str):
+        return [item.strip() for item in value.split(',')]
+    elif isinstance(value, list):
+        return value
+    else:
+        raise argparse.ArgumentTypeError("Value must be a string or a list")
+
 def plot_umap(data, clinical, colors_dict, n_components=2, save_fig=False, save_as=None, seed=None, title='UMAP',show=True):
     '''
     Plot UMAP of the data with different colors for the different groups.
@@ -43,18 +52,16 @@ def plot_umap(data, clinical, colors_dict, n_components=2, save_fig=False, save_
             idx = [all_patients.index(patient) for patient in group_patients]
             plt.scatter(X_umap[idx, 0], X_umap[idx, 1], c=color, label=group)
         plt.legend(fontsize=16)
-        plt.title(title)
+        plt.title(title, fontsize=20)
         plt.xlabel('UMAP 1', fontsize=16)
         plt.ylabel('UMAP 2', fontsize=16)
         plt.xticks([])
         plt.yticks([])
-        # Remove borders
-        plt.gca().spines['top'].set_visible(False)
-        plt.gca().spines['right'].set_visible(False)
-        plt.gca().spines['left'].set_visible(False)
-        plt.gca().spines['bottom'].set_visible(False)
-        # Save to path_figs
-        # save_as = os.path.join(path_figs, f"{today}_UMAP")
+        # Change the color of the axis lines to black
+        plt.gca().spines['top'].set_color('black')
+        plt.gca().spines['right'].set_color('black')
+        plt.gca().spines['left'].set_color('black')
+        plt.gca().spines['bottom'].set_color('black')
     else:
         fig = plt.figure(figsize=(10, 10))
         ax = fig.add_subplot(111, projection='3d')
@@ -69,18 +76,19 @@ def plot_umap(data, clinical, colors_dict, n_components=2, save_fig=False, save_
         ax.set_xlabel('UMAP 1', fontsize=16)
         ax.set_ylabel('UMAP 2', fontsize=16)
         ax.set_zlabel('UMAP 3', fontsize=16)
+        # Change the color of the axis lines to black
+        ax.spines['top'].set_color('black')
+        ax.spines['right'].set_color('black')
+        ax.spines['left'].set_color('black')
+        ax.spines['bottom'].set_color('black')
         # Save to path_figs
         # save_as = os.path.join(path_figs, f"{today}_3D_UMAP")
         # Remove all axe ticks
         ax.set_xticks([])
         ax.set_yticks([])
         ax.set_zticks([])
-        # Remove borders
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        ax.spines['left'].set_visible(False)
-        ax.spines['bottom'].set_visible(False)
-
+    # Set the background color to white
+    plt.gca().set_facecolor('white')
     # Save figure as png and svg:
     if save_fig:
         plt.savefig(f'{save_as}.png', format='png', bbox_inches='tight', dpi=1000, transparent=True)
@@ -154,28 +162,29 @@ if __name__=='__main__':
     parser.add_argument('--data_path', type=str, help='Path to the data file')
     parser.add_argument('--metadata_path', type=str, help='Path to the clinical file')
     parser.add_argument('--save_path', type=str, help='Path to save the figure')
-    parser.add_argument('--groups', nargs='+', help='Names of groups in the data')
+    parser.add_argument('--groups', type=str_or_list, help='Names of groups in the data')
     parser.add_argument('--n_components', type=int, help='Number of components for UMAP or t-SNE', default=2)
     parser.add_argument('--seed', type=int, help='Random seed for reproducibility')
+    parser.add_argument('--title', type=str, help='Title of the UMAP', default='umap')
 
     args = parser.parse_args()
     groups = args.groups
-    if 'InBetween' in groups:
-        groups = ['In Between' if x == 'InBetween' else x for x in groups]
+    if 'G3-G4' in groups:
+        groups = ['G3-G4' if x == 'G3-G4' else x for x in groups]
     print('groups:', groups)
     os.makedirs(args.save_path, exist_ok=True)
     # Load the data and metadata
     data = pd.read_csv(args.data_path, index_col=0)
     clinical = pd.read_csv(args.metadata_path, index_col=0)
-    clinical.replace({'Group 3': 'Group3', 'Group 4': 'Group4'},inplace=True) # Just in case, adjust the names
+    clinical.replace({'Group3': 'Group 3', 'Group4': 'Group 4'},inplace=True) # Just in case, adjust the names
     clinical = clinical.squeeze()
     print(type(clinical))
     print('clinical.value_counts():', clinical.value_counts())
     dict_plot = {'SHH': '#b22222',
                  'WNT': '#6495ed',
-                 'Group3': '#ffd700',
-                 'Group4': '#008000',
-                 'In Between': '#db7093',
+                 'Group 3': '#ffd700',
+                 'Group 4': '#008000',
+                 'G3-G4': '#db7093',
                  'Synthetic': '#808080'}
     # Select the groups to plot
     clinical = clinical[clinical.isin(groups)]
@@ -188,6 +197,8 @@ if __name__=='__main__':
             raise ValueError("No patients found in data")
     dict_plot = {k: v for k, v in dict_plot.items() if k in groups}
     print('clinical.value_counts():', clinical.value_counts())
+    # Replace literal \n with an actual newline character
+    title = args.title.replace('\\n', '\n')
     # Plot UMAP
     plot_umap(
         data=data,
@@ -198,7 +209,7 @@ if __name__=='__main__':
         save_as=os.path.join(args.save_path,'umap'),
         seed=args.seed,
         show=False,
-        title=None)
+        title=title)
 
 # Example usage from the command line:
 # python src/visualization/visualize.py --data_path data/interim/20241023_preprocessing/rnaseq_maha.csv \

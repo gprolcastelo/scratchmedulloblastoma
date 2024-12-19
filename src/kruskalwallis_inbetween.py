@@ -56,7 +56,7 @@ def apply_kw_nonpairwise(data, clinical):
     clinical.replace(
         {'Group3': 'Group 3', 'synthetic_Group 3': 'Group 3',
          'Group4': 'Group 4', 'synthetic_Group 4': 'Group 4',
-         'In Between': 'In Between', 'synthetic_In Between': 'In Between'
+         'G3-G4': 'G3-G4', 'synthetic_G3-G4': 'G3-G4'
          },
         inplace=True)
     print('inside kw, clinical:', clinical.value_counts())
@@ -75,7 +75,7 @@ def apply_kw_nonpairwise(data, clinical):
         'g3_g4_transition': (
             data.loc[clinical[clinical == 'Group 3'].index],
             data.loc[clinical[clinical == 'Group 4'].index],
-            data.loc[clinical[clinical == 'In Between'].index])
+            data.loc[clinical[clinical == 'G3-G4'].index])
     }
 
     # Iterate over the genes (rows) in the datasets
@@ -107,7 +107,7 @@ def apply_dunn(data, clinical):
     clinical.replace(
         {'Group3': 'Group 3', 'synthetic_Group 3': 'Group 3',
          'Group4': 'Group 4', 'synthetic_Group 4': 'Group 4',
-         'In Between': 'In Between', 'synthetic_In Between': 'In Between'
+         'G3-G4': 'G3-G4', 'synthetic_G3-G4': 'G3-G4'
          },
         inplace=True)
     # print('inside dunn, clinical:', clinical.value_counts())
@@ -124,11 +124,11 @@ def apply_dunn(data, clinical):
     comparison_dict = {
         'g3_g4': (data.loc[clinical[clinical == 'Group 3'].index],
                   data.loc[clinical[clinical == 'Group 4'].index],
-                  data.loc[clinical[clinical == 'In Between'].index])
+                  data.loc[clinical[clinical == 'G3-G4'].index])
     }
 
     # Iterate over the genes (rows) in the datasets
-    for gene in tqdm(data.columns, desc='Applying Dunn to groups 3, 4, and In Between'):
+    for gene in tqdm(data.columns, desc='Applying Dunn to groups 3, 4, and G3-G4'):
         # print('gene:', gene)
         for col_name, (df_g3, df_g4, df_transition) in comparison_dict.items():
             # print('col_name:', col_name)
@@ -146,13 +146,13 @@ def apply_dunn(data, clinical):
                 p_value = sp.posthoc_dunn([df_g3[gene], df_g4[gene], df_transition[gene]], p_adjust='bonferroni')
                 # print('p_value:', p_value)
             # Store the p-value
-            p_value.columns = ['Group 3', 'Group 4', 'In Between']
-            p_value.index = ['Group 3', 'Group 4', 'In Between']
+            p_value.columns = ['Group 3', 'Group 4', 'G3-G4']
+            p_value.index = ['Group 3', 'Group 4', 'G3-G4']
 
             # Store the p-values in the DataFrame
             p_values_df.loc[gene, 'g3_g4'] = p_value.at['Group 3', 'Group 4']
-            p_values_df.loc[gene, 'g3_transition'] = p_value.at['Group 3', 'In Between']
-            p_values_df.loc[gene, 'g4_transition'] = p_value.at['Group 4', 'In Between']
+            p_values_df.loc[gene, 'g3_transition'] = p_value.at['Group 3', 'G3-G4']
+            p_values_df.loc[gene, 'g4_transition'] = p_value.at['Group 4', 'G3-G4']
 
     return p_values_df
 
@@ -177,11 +177,11 @@ def plot_differential_genes(data, clinical, genes, p_values_df, path_boxplot):
         # Get the datasets to be compared
         df_g3 = data[clinical[clinical == 'Group 3'].index].loc[gene]
         df_g4 = data[clinical[clinical == 'Group 4'].index].loc[gene]
-        df_transition = data[clinical[clinical == 'In Between'].index].loc[gene]
+        df_transition = data[clinical[clinical == 'G3-G4'].index].loc[gene]
         # Concatenate the datasets
         df_gene = [df_g3, df_transition, df_g4]
         # Plot the boxplot on the corresponding subplot
-        bp = ax.boxplot(df_gene, patch_artist=True, labels=['Group 3', 'In Between', 'Group 4'])
+        bp = ax.boxplot(df_gene, patch_artist=True, labels=['Group 3', 'G3-G4', 'Group 4'])
         # Set colors for each box
         for patch, color in zip(bp['boxes'], colors):
             patch.set_facecolor(color)
@@ -190,6 +190,7 @@ def plot_differential_genes(data, clinical, genes, p_values_df, path_boxplot):
         ax.set_title(gene, fontsize=8)
         ax.tick_params(axis='x', labelsize=8)
         ax.tick_params(axis='y', labelsize=8)
+        ax.set_ylabel('Gene Expression', fontsize=8)
         # ax.set_ylim(0, 20)
         # Perform the Mann-Whitney U test between Group 3 and Group 4
         # stat, p_value = mannwhitneyu(df_g3, df_g4)
@@ -276,11 +277,11 @@ def plot_differential_genes_to_pdf_doc(data, clinical, genes, path_boxplot, nrow
             # Get the datasets to be compared
             df_g3 = data.loc[clinical[clinical == 'Group 3'].index][gene]
             df_g4 = data.loc[clinical[clinical == 'Group 4'].index][gene]
-            df_transition = data.loc[clinical[clinical == 'In Between'].index][gene]
+            df_transition = data.loc[clinical[clinical == 'G3-G4'].index][gene]
             # Concatenate the datasets
             df_gene = [df_g3, df_transition, df_g4]
             # Plot the boxplot on the corresponding subplot
-            bp = ax.boxplot(df_gene, patch_artist=True, labels=['Group 3', 'In Between', 'Group 4'])
+            bp = ax.boxplot(df_gene, patch_artist=True, labels=['Group 3', 'G3-G4', 'Group 4'])
             # Set colors for each box
             for patch, color in zip(bp['boxes'], colors):
                 patch.set_facecolor(color)
@@ -301,8 +302,8 @@ def main(args):
     os.makedirs(args.path_boxplot, exist_ok=True)
     os.makedirs(args.save_path, exist_ok=True)
     # Load data:
-    # list_groups = ['Group 3','Group 4','In Between']
-    # list_groups = ['synthetic_Group 3','synthetic_Group 4','synthetic_In Between'] # choose synthetic groups
+    # list_groups = ['Group 3','Group 4','G3-G4']
+    # list_groups = ['synthetic_Group 3','synthetic_Group 4','synthetic_G3-G4'] # choose synthetic groups
     list_groups = args.group_to_analyze
     print(f'Groups to augment: {list_groups}')
     data_for_clustering, clinical, genes = load_data(
@@ -350,7 +351,7 @@ if __name__ == '__main__':
     parser.add_argument('--alpha', type=float, default=0.01, help='Significance level for the Kruskal-Wallis test')
     parser.add_argument('--path_boxplot', type=str, help='Path to save boxplot figures')
     parser.add_argument('--save_path', type=str, help='Path to save the results')
-    parser.add_argument('--group_to_analyze', type=str_or_list, default='In Between', help='Group to augment')
+    parser.add_argument('--group_to_analyze', type=str_or_list, default='G3-G4', help='Group to augment')
     # Simulate command-line arguments
     # import sys
     #
@@ -361,7 +362,7 @@ if __name__ == '__main__':
     #             '--alpha', '0.01',
     #             '--path_boxplot', 'reports/figures/20241122_kw/boxplot_augmented/synth_patients',
     #             '--save_path', 'data/processed/20241122_differentially_expressed_genes/synth_patients',
-    #             '--group_to_analyze', 'synthetic_Group 3, synthetic_Group 4, synthetic_In Between'
+    #             '--group_to_analyze', 'synthetic_Group 3, synthetic_Group 4, synthetic_G3-G4'
     #             ]
     args = parser.parse_args()
     print('args =', args)
@@ -378,4 +379,4 @@ if __name__ == '__main__':
 #                                       --alpha 0.01 \
 #                                       --path_boxplot reports/figures/20241115_kw/boxplot_augmented/synth_patients \
 #                                       --save_path data/processed/20241115_differentially_expressed_genes/synth_patients \
-#                                       --group_to_analyze 'synthetic_Group 3, synthetic_Group 4, synthetic_In Between'
+#                                       --group_to_analyze 'synthetic_Group 3, synthetic_Group 4, synthetic_G3-G4'

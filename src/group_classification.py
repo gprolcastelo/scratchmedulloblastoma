@@ -10,7 +10,7 @@ plt.style.use('ggplot')
 # Custom functions:
 from src.data_processing.classification import *
 
-def boxplot_metrics(plot_results,legend_labels,n_seeds,save_dir,cmap='Pastel2'):
+def boxplot_metrics(plot_results,legend_labels,n_seeds,save_dir,cmap='Pastel2',title=''):
     """
     Boxplot of the metrics of the classification
     :param plot_results: list of classification results
@@ -29,8 +29,9 @@ def boxplot_metrics(plot_results,legend_labels,n_seeds,save_dir,cmap='Pastel2'):
     # Rotate the x-axis labels
     plt.xticks(rotation=45,fontsize=14)
     plt.yticks(fontsize=14)
-    plt.ylim([0,1])
-    plt.xlabel('Score',fontsize=16)
+    plt.ylim([0,1.05])
+    plt.xlabel('Score', fontsize=16)
+    plt.title(title, fontsize=18)
     # Set the colors
     for patch, color in zip(bp['boxes'], colors):
         patch.set_facecolor(color)
@@ -79,6 +80,8 @@ def main(path_data,path_metadata,n_classes,n_seeds=10,n_trials_optuna=100,n_br=1
         )
         (model, metrics_i, y_test_le, y_pred, data_used, weighted_params) = classification
         metrics.append(metrics_i)
+        # Save each metrics_i as a CSV file with the seed included in the name
+        metrics_i.to_csv(os.path.join(save_dir, f'metrics_seed_{seed_i}.csv'))
 
     # done for seed in seeds
     # Create df with mean and std of all seeds
@@ -91,7 +94,7 @@ def main(path_data,path_metadata,n_classes,n_seeds=10,n_trials_optuna=100,n_br=1
     metrics_mean.to_csv(os.path.join(save_dir,'metrics_mean.csv'))
     metrics_std.to_csv(os.path.join(save_dir,'metrics_std.csv'))
     # Boxplot of classification metrics:
-    boxplot_metrics(plot_results=metrics,legend_labels=metrics_mean.columns,save_dir=save_dir,cmap='Pastel2',n_seeds=n_seeds)
+    boxplot_metrics(plot_results=metrics,legend_labels=metrics_mean.columns,save_dir=save_dir,cmap='Pastel2',n_seeds=n_seeds,title=args.title)
 
 if __name__ == '__main__':
     from datetime import datetime
@@ -144,6 +147,10 @@ if __name__ == '__main__':
                         type=int,
                         default=16,
                         help='Number of threads to use for parallel processing')
+    parser.add_argument('--title',
+                        type=str,
+                        default='',
+                        help='Title of the classification boxplot')
     # unpack arguments
     args = parser.parse_args()
     main(path_data=args.path_data,

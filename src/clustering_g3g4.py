@@ -270,7 +270,7 @@ def knn_bootstrapping(data,data_selected, metadata,metadata_selected,n_neighbors
     metadata_bootstrap = metadata.copy()
     print('metadata.value_counts():', metadata.value_counts())
     for group_i in groups_list:
-        metadata_bootstrap.loc[bootstrap_most_changing_patients[group_i]] = 'In Between'
+        metadata_bootstrap.loc[bootstrap_most_changing_patients[group_i]] = 'G3-G4'
     print('metadata_bootstrap.value_counts():', metadata_bootstrap.value_counts())
     contingency_table = pd.crosstab(metadata, metadata_bootstrap, margins=True)
     print('Contingency table:', contingency_table)
@@ -297,7 +297,7 @@ def knn_bootstrapping(data,data_selected, metadata,metadata_selected,n_neighbors
 
 def main(args):
     groups_list = ['Group 3', 'Group 4']
-    #groups_list = ['Group 3', 'Group 4','Synthetic','In Between']
+    #groups_list = ['Group 3', 'Group 4','Synthetic','G3-G4']
     data, metadata = load_data(args.data_path, args.metadata_path)
     # df_z, df_reconstruction_x = load_vae(args.model_path, data)
     # df_net_output = apply_rec_net(data, df_reconstruction_x,network_model_path=args.network_model_path,recnet_hyperparams_path=args.recnet_hyperparams_path)
@@ -364,8 +364,7 @@ if __name__ == '__main__':
 
     # Dictionary of colors for the different groups to plot UMAP
     global dict_umap
-    dict_umap = {'SHH': '#b22222', 'WNT': '#6495ed', 'Group 3': '#ffd700', 'Group 4': '#008000',
-                 'In Between': '#db7093'}
+    dict_umap = {'SHH': '#b22222', 'WNT': '#6495ed', 'Group 3': '#ffd700', 'Group 4': '#008000', 'G3-G4': '#db7093'}
     main(args)
 
 # Running with augmented data:

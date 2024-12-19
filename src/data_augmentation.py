@@ -43,9 +43,12 @@ def config(results_path):
     today=datetime.datetime.now().strftime("%Y%m%d")
     # Dictionary with group colors for UMAP
     dict_umap = {
-        'SHH': '#b22222', 'WNT': '#6495ed',
-        'Group 3': '#ffd700', 'Group 4': '#008000',
-        'In Between': '#db7093', 'Synthetic': '#808080'
+        # 'SHH': '#b22222',
+        # 'WNT': '#6495ed',
+        'Group 3': '#ffd700',
+        'Group 4': '#008000',
+        'G3-G4': '#db7093',
+        'Synthetic': '#808080'
     }
     # Path to save the results
     # results_path = f"data/interim/{today}_data_augmentation"
@@ -191,7 +194,7 @@ def main(args):
               # save_as=None,
               save_fig=True,
               save_as=os.path.join(results_path, 'recnet_augmented'),
-              seed=None, title=None,show=False)
+              seed=None, title=args.title,show=False)
     # Save the results
     # Create df with original patients and only the augmented patients after postprocessing
     df_augment_real_and_synth = rnaseq.copy()
@@ -205,8 +208,6 @@ def main(args):
     print('clinical_synthetic.shape =', clinical_synthetic.shape)
     df_z_rnaseq_augmented.to_csv(os.path.join(results_path, 'latent_augmented.csv'))
     print('df_z_rnaseq_augmented.shape =', df_z_rnaseq_augmented.shape)
-    df_net_output.to_csv(os.path.join(results_path, 'reconstructed_synth.csv'))
-    print('df_net_output.shape =', df_net_output.shape)
     print('Results saved to:', results_path)
 
 if __name__ == '__main__':
@@ -231,9 +232,10 @@ if __name__ == '__main__':
     parser.add_argument('--mu', type=float, default=0, help='Mean of the noise')
     parser.add_argument('--std', type=float, default=1, help='Standard deviation of the noise')
     parser.add_argument('--noise_ratio', type=float, default=0.25, help='Noise ratio')
-    parser.add_argument('--group_to_augment', type=str_or_list, default='In Between', help='Group to augment')
+    parser.add_argument('--group_to_augment', type=str_or_list, default='G3-G4', help='Group to augment')
     parser.add_argument('--n_synth', type=int, default=100, help='Number of synthetic patients to generate')
     parser.add_argument('--results_path', type=str, default='data/interim/20240903_data_augmentation', help='Path to save the results')
+    parser.add_argument('--title', type=str, default='', help='Title of the UMAP')
     # parse the arguments
     args = parser.parse_args()
     print('args =', args)
@@ -245,4 +247,4 @@ if __name__ == '__main__':
 #                             --clinical_path data/interim/20240801_clustering_g3g4/metadata_after_bootstrap.csv \
 #                             --model_path models/20240417_cavalli_maha/20240417_VAE_idim12490_md2048_feat16mse_relu.pth \
 #                             --network_model_path data/interim/20240802_adjust_reconstruction/network_reconstruction.pth \
-#                             --mu 0 --std 1 --noise_ratio 0.25 --group_to_augment 'In Between' --n_synth 100
+#                             --mu 0 --std 1 --noise_ratio 0.25 --group_to_augment 'G3-G4' --n_synth 100

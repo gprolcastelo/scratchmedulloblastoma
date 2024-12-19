@@ -1,9 +1,18 @@
+import argparse
+parser = argparse.ArgumentParser(description='Check synth data generation with different noise ratios.')
+parser.add_argument('--data_path', type=str, help='Path to the data file')
+parser.add_argument('--clinical_path', type=str, help='Path to the clinical data file')
+parser.add_argument('--model_path', type=str, help='Path to the model file')
+parser.add_argument('--recnet_path', type=str, help='Path to the reconstruction network file')
+parser.add_argument('--hyperparam_path', type=str, help='Path to the hyperparameters file')
+parser.add_argument('--save_path', type=str, help='Path to save the figures')
+args = parser.parse_args()
+
 import datetime
 import matplotlib.pyplot as plt
+from scipy.stats import wasserstein_distance
 from src.models.train_model import set_seed
 from src.models.my_model import VAE
-plt.style.use('ggplot')
-# Custom functions:
 from src.utils import apply_VAE, fun_decode, get_hyperparams
 plt.style.use('ggplot')
 device = 'cpu'
@@ -15,10 +24,16 @@ from src.visualization.visualize import plot_umap
 from src.data_processing.shap import *
 from src.data_augmentation import synth_data_generation
 
-# Importing the data:
+# Define the function to calculate Wasserstein distance
+def calculate_wasserstein_distance(real_data, synth_data):
+    distances = []
+    for real, synth in zip(real_data, synth_data):
+        distances.append(wasserstein_distance(real, synth))
+    return np.mean(distances)
 
-full_data_path = "data/interim/20241115_preprocessing/cavalli_maha.csv"
-clinical_data_path = "data/raw/GEO/cavalli_subgroups.csv"
+# Importing the data:
+full_data_path = args.data_path
+clinical_data_path = args.clinical_path
 
 
 # Load data:
@@ -31,7 +46,7 @@ print(clinical.shape)
 
 # Importing VAE
 model_here = VAE
-model_path = 'models/20241115_VAE/20241115_VAE_idim14349_md1024_feat64_lr0.0001.pth'
+model_path=args.model_path
 # Hyperparameters:
 idim, md, feat = get_hyperparams(model_path)
 # One hot encode the clinical data:
@@ -52,8 +67,9 @@ df_z = pd.DataFrame(z, index=rnaseq.index)
 
 # Reconstruction network
 from src.adjust_reconstruction import NetworkReconstruction as model_net_here
-network_model_path = "models/20241115_adjust_reconstruction/network_reconstruction.pth"
-hyperparam_path = "data/interim/20241115_adjust_reconstruction/best_hyperparameters.csv"
+network_model_path = args.recnet_path
+hyperparam_path = args.hyperparam_path
+
 # Hyperparameters:
 hyper = pd.read_csv(hyperparam_path,index_col=0)
 hyper = hyper.values.tolist()[0]
@@ -72,62 +88,97 @@ net_output.shape, df_net_output.shape
 
 # Checking noise with UMAP
 
-save_dir = f'reports/figures/{today}_noise_umaps/'
+# save_dir = f'reports/figures/{today}_noise_umaps/'
+save_dir = args.save_path
 os.makedirs(save_dir,exist_ok=True)
 save_fig = True
 mu = 0
 std = 1
-dict_umap = {'SHH': '#b22222', 'WNT': '#6495ed', 'Group 3': '#ffd700', 'Group 4': '#008000', 'In Between': '#db7093', 'Synthetic': '#808080'}
+dict_umap = {'SHH': '#b22222', 'WNT': '#6495ed', 'Group 3': '#ffd700', 'Group 4': '#008000', 'G3-G4': '#db7093', 'Synthetic': '#808080'}
 
 dict_umap_augment = {'SHH': '#b22222', 'WNT': '#6495ed', 'Group 3': '#ffd700', 'Group 4': '#008000',
                      'synthetic_SHH': 'coral', 'synthetic_WNT': 'cyan', 'synthetic_Group 3': 'yellow', 'synthetic_Group 4': 'limegreen',
                     }
 
 group_to_augment = ['SHH','WNT','Group 3','Group 4']
+noise_ratios = [0.1, 0.2, 0.3, 0.5]
 
 # Real space
-space='realspace'
-for n_synth in [50,100,200,500]:
-    for noise_ratio in [0.1,0.2,0.3,0.5]:
+results = []
+space = 'realspace'
+groups = group_to_augment
+for n_synth in [100]:
+    for noise_ratio in noise_ratios:
         title = f'UMAP with n_synth = {n_synth}, noise_ratio = {noise_ratio}, mu = {mu}, std = {std}'
         file_name = f'umap_{space}_nsynth{n_synth}_noiseratio{noise_ratio}_mu{mu}_std{std}'
-        save_as = os.path.join(save_dir,space,file_name)
-        os.makedirs(os.path.join(save_dir,space),exist_ok=True)
-        df_augment, metadata_augment = synth_data_generation(df_to_augment=rnaseq, metadata=clinical, group_to_augment=group_to_augment, mu=0, std=1, n_synth=n_synth, rand_state=2023, noise_ratio=noise_ratio)
-        plot_umap(data=df_augment.T, clinical=metadata_augment, colors_dict=dict_umap_augment, n_components=2, save_fig=save_fig, save_as=save_as, seed=None, title= f'{title}',show=False)
+        save_as = os.path.join(save_dir, space, file_name)
+        os.makedirs(os.path.join(save_dir, space), exist_ok=True)
 
-# Noise in Latent Space, then Decode + Post-Processing
+        # Generate synthetic data
+        df_augment, metadata_augment = synth_data_generation(df_to_augment=rnaseq, metadata=clinical, group_to_augment=groups, mu=0, std=1, n_synth=n_synth, rand_state=2023, noise_ratio=noise_ratio)
 
-# augment data in l.s., then plot umap with synthetic (reconstructed) and real patients
+        # Plot UMAP
+        plot_umap(data=df_augment.T, clinical=metadata_augment, colors_dict=dict_umap_augment, n_components=2, save_fig=True, save_as=save_as, seed=None, title=None, show=False)
+
+        # Calculate Wasserstein distance for each group
+        for group in groups:
+            real_data = rnaseq[clinical == group].values
+            synth_data = df_augment[metadata_augment==f'synthetic_{group}'].values
+            avg_distance = calculate_wasserstein_distance(real_data, synth_data)
+
+            # Store the result
+            results.append({'group': group, 'n_synth': n_synth, 'noise_ratio': noise_ratio, 'avg_wasserstein_distance': avg_distance})
+
+# Create a DataFrame from the results
+results_df = pd.DataFrame(results)
+
+# Latent space to reconstructed plus real space
+results_ls = []
 df_here = df_z
-space='latentspace_to_recons_plus_real'
+space = 'latentspace_to_recons_plus_real'
 include_real_recons = False
-for n_synth in [50,100,200,500]:
-    for noise_ratio in [0.1,0.2,0.3,0.5]:
+
+for n_synth in [100]:
+    for noise_ratio in noise_ratios:
         title = f'UMAP in {space} with n_synth = {n_synth}, noise_ratio = {noise_ratio}, mu = {mu}, std = {std}'
         file_name = f'umap_{space}_nsynth{n_synth}_noiseratio{noise_ratio}_mu{mu}_std{std}'
-        save_as = os.path.join(save_dir,space,file_name)
-        os.makedirs(os.path.join(save_dir,space),exist_ok=True)
-        # augment data in l.s.
-        df_augment, metadata_augment = synth_data_generation(df_to_augment=df_here, metadata=clinical, group_to_augment=group_to_augment, mu=0, std=1, n_synth=n_synth, rand_state=2023, noise_ratio=noise_ratio)
-        
-        # l.s. to real space with decoder
-        ## select synthetic patients:
-        synth_pats=[i.startswith('synth') for i in df_augment.index]
+        save_as = os.path.join(save_dir, space, file_name)
+        os.makedirs(os.path.join(save_dir, space), exist_ok=True)
 
-        print('A) Not including real data')
+        # Augment data in latent space
+        df_augment, metadata_augment = synth_data_generation(df_to_augment=df_here, metadata=clinical, group_to_augment=groups, mu=0, std=1, n_synth=n_synth, rand_state=2023, noise_ratio=noise_ratio)
+
+        # Select synthetic patients
+        synth_pats = [i.startswith('synth') for i in df_augment.index]
         df_z_augment = df_augment.loc[synth_pats]
-        ## apply decoder and inverse scaler to synth patients in l.s:
-        df_recons_augment = fun_decode(df_z_augment,model=model_vae,scaler=scaler)
-        print("type(df_recons_augment):",type(df_recons_augment))
-        ## apply postprocessing network:
+
+        # Apply decoder and inverse scaler to synthetic patients in latent space
+        df_recons_augment = fun_decode(df_z_augment, model=model_vae, scaler=scaler)
+
+        # Apply postprocessing network
         model_net.eval()  # Set the model to evaluation mode
         rec_tensor_i = torch.tensor(df_recons_augment).to(torch.float32)
         df_recons_augment = model_net(rec_tensor_i).detach().numpy()
-        df_recons_augment = pd.DataFrame(df_recons_augment,index=df_augment.index[synth_pats],columns=rnaseq.columns)
-        ## concat with real patients:
-        df_recons_augment=pd.concat([rnaseq,df_recons_augment])
-        
-        print("df_recons_augment.shape = ", df_recons_augment.shape)
-        # plot synth (decoded) and real patients together
-        plot_umap(data=df_recons_augment, clinical=metadata_augment, colors_dict=dict_umap_augment, n_components=2, save_fig=save_fig, save_as=save_as, seed=None, title= f'{title}',show=False)
+        df_recons_augment = pd.DataFrame(df_recons_augment, index=df_augment.index[synth_pats], columns=rnaseq.columns)
+
+        # Concatenate with real patients
+        df_recons_augment = pd.concat([rnaseq, df_recons_augment])
+
+        # Plot synthetic (decoded) and real patients together
+        plot_umap(data=df_recons_augment, clinical=metadata_augment, colors_dict=dict_umap_augment, n_components=2, save_fig=save_fig, save_as=save_as, seed=None, title=None, show=False)
+
+        # Calculate Wasserstein distance for each group
+        for group in groups:
+            real_data = rnaseq[clinical == group].values
+            synth_data = df_recons_augment[metadata_augment == f'synthetic_{group}'].values
+            avg_distance = calculate_wasserstein_distance(real_data, synth_data)
+
+            # Store the result
+            results_ls.append({'group': group, 'n_synth': n_synth, 'noise_ratio': noise_ratio, 'avg_wasserstein_distance': avg_distance})
+
+# Create a DataFrame from the results
+results_ls_df = pd.DataFrame(results_ls)
+
+# Save the results to a LaTeX table
+results_df.to_latex(os.path.join(save_dir,'noise_table.tex'))
+results_ls_df.to_latex(os.path.join(save_dir,'noise_ls_table.tex'))

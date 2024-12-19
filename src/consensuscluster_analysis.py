@@ -36,7 +36,7 @@ def find_overlap(metadata, consensus_k2, consensus_k3):
     # Get the patients that have changed group from consensus_k2_clinical to consensus_k3
     changed_patients_k3_to_k2 = consensus_k2[consensus_k2 != consensus_k3].index
     metadata_changed_k3_to_k2 = metadata.copy()
-    metadata_changed_k3_to_k2[changed_patients_k3_to_k2] = 'In Between'
+    metadata_changed_k3_to_k2[changed_patients_k3_to_k2] = 'G3-G4'
     # Get corresponding contingency table
     original_consensus_comparison = pd.crosstab(metadata, metadata_changed_k3_to_k2, margins=True)
     original_consensus_comparison.index.name = 'Original'
@@ -68,11 +68,13 @@ def main(args):
     original_consensus_comparison.to_latex(os.path.join(args.save_path, 'original_consensus_comparison.tex'))
     metadata_changed_k3_to_k2.to_csv(os.path.join(args.save_path, 'metadata_changed_k3_to_k2.csv'))
     # Plot umap with In between groups:
-    dict_umap = {'SHH': '#b22222', 'WNT': '#6495ed', 'Group 3': '#ffd700', 'Group 4': '#008000', 'In Between': '#db7093'}
+    dict_umap = {'SHH': '#b22222', 'WNT': '#6495ed', 'Group 3': '#ffd700', 'Group 4': '#008000', 'G3-G4': '#db7093'}
+    # Replace literal \n with an actual newline character
+    title = args.title.replace('\\n', '\n')
     plot_umap(data, metadata_changed_k3_to_k2, dict_umap, n_components=2, save_fig=True,
               # save_as=os.path.join(args.save_path, 'k3_to_k2_latent' if args.use_latent else 'k3_to_k2_noprepro'),
               save_as=os.path.join(args.save_path, 'k3_to_k2'),
-              seed=2023, title=None,show=False)
+              seed=2023, title=title,show=False)
     return None
 
 if __name__ == '__main__':
@@ -83,6 +85,7 @@ if __name__ == '__main__':
     parser.add_argument('--consensus_path', type=str, help='Path to the directory containing the ConsensusCluster results')
     parser.add_argument('--save_path', type=str, help='Path to the directory to save the results')
     # parser.add_argument('--use_latent', action='store_true', help='Use the latent space instead of the original data')
+    parser.add_argument('--title', type=str, help='Title of the UMAP', default='')
     args = parser.parse_args()
     main(args)
 

@@ -20,9 +20,9 @@ mkdir -p err_out
 mkdir -p $model_path
 
 # 0. Obain data
-Rscript src/get_data.R
-python src/prepare_data.py
-
+Rscript get_data.R
+python prepare_data.py
+exit 1
 # 1. Preprocessing
 python src/preprocessing.py --data_path $data_path \
 							--metadata_path $metadata_path \
@@ -211,14 +211,14 @@ python src/clustering_g3g4.py --data_path $preprocessed_data_path \
 python src/visualization/visualize.py --data_path $data_path \
                                       --metadata_path $metadata_path_knn_latent \
                                       --save_path ${current_dir}/data/processed/${today}_knn_bootstrap_latent/knn_bootstrapping/original_umap \
-                                      --groups "SHH WNT Group3 Group4 InBetween" \
+                                      --groups "SHH WNT Group3 Group4 G3-G4" \
                                       --n_components 2 \
                                       --seed 2023
 ### Preprocessed data
 python src/visualization/visualize.py --data_path $preprocessed_data_path \
                                       --metadata_path $metadata_path_knn_latent \
                                       --save_path ${current_dir}/data/processed/${today}_knn_bootstrap_latent/knn_bootstrapping/preprocessed_umap \
-                                      --groups "SHH WNT Group3 Group4 InBetween" \
+                                      --groups "SHH WNT Group3 Group4 G3-G4" \
                                       --n_components 2 \
                                       --seed 2023
 
@@ -229,7 +229,7 @@ n_synth=200
 metadata_path_after_bootstrap_real=${current_dir}/data/processed/${today}_knn_bootstrap_preprocessed/metadata_after_bootstrap.csv
 metadata_path_after_bootstrap_latent=${current_dir}/data/processed/${today}_knn_bootstrap_latent/metadata_after_bootstrap.csv
 save_path_augment=${current_dir}/data/interim/${today}_data_augmentation
-# For groups: Group 3, Group 4, and In Between
+# For groups: Group 3, Group 4, and G3-G4
 python src/data_augmentation.py --data_path $preprocessed_data_path \
                            --clinical_path $metadata_path_after_bootstrap_real \
                            --model_path $path_to_best_model \
@@ -238,7 +238,7 @@ python src/data_augmentation.py --data_path $preprocessed_data_path \
                            --mu 0 \
                            --std 1 \
                            --noise_ratio 0.25 \
-                           --group_to_augment "Group 3, Group 4, In Between" \
+                           --group_to_augment "Group 3, Group 4, G3-G4" \
                            --n_synth $n_synth \
                            --results_path ${save_path_augment}/real
 
@@ -254,7 +254,7 @@ python src/kruskalwallis_inbetween.py --path_data ${save_path_augment}/real/augm
                                                                 --alpha $alpha_kw \
                                                                 --path_boxplot $kw_boxplot_path/synth_patients \
                                                                 --save_path $kw_path/synth_patients \
-                                                                --group_to_analyze "synthetic_Group 3, synthetic_Group 4, synthetic_In Between"
+                                                                --group_to_analyze "synthetic_Group 3, synthetic_Group 4, synthetic_G3-G4"
 
 # 12. SHAP
 shap_save_path=${current_dir}/data/interim/${today}_shap
@@ -272,5 +272,23 @@ python src/classification_shap.py --n_shap 100 \
                                   --group_to_analyze "all"
 echo "Done with the pipeline."
 
-# TODO: add calls to src/check_noise.py, src/genes_reconstruction.py, and src/gprofiler.R
-# TODO: add to these scripts argparse with correct paths to data
+# 13. Check noise ratio
+python src/check_noise_ratio.py --data_path $preprocessed_data_path \
+                                --clinical_path $metadata_path \
+                                --model_path $path_to_best_model \
+                                --recnet_path $recnet_path \
+                                --hyperparam_path ${adjust_path}/best_hyperparameters.csv \
+                                --save_path ${current_dir}/reports/figures/${today}_noise_ratio
+
+# 14. Check the reconstruction error with Wasserstein distance
+python src/genes_reconstruction.py --data_path $preprocessed_data_path \
+                                --clinical_path $metadata_path \
+                                --model_path $path_to_best_model \
+                                --recnet_path $recnet_path \
+                                --hyperparam_path ${adjust_path}/best_hyperparameters.csv \
+                                --save_path ${current_dir}/reports/figures/${today}_reconstruction_error
+
+# 15. Enrichment analysis with gprofiler
+Rscript src/gprofiler.R ${shap_save_path}/selected_genes.csv ${current_dir}/data/processed/${today}_gprofiler_enrichment
+
+echo "Done with the pipeline."
